@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style type="text/css">
+        canvas {
+            display: block;
+            margin: 50px auto;
+            box-shadow: -2px -2px 2px #F3F2F2, 5px 5px 5px #6F6767;
+        }
+
+        #messages {
+            height: 200px;
+            overflow-y: auto;
+        }
+        #chat {
+            position: absolute;
+            left: 700px;
+            top: 100px;
+            width: 500px;
+            height: 400px;
+            background-color: #F3F2F2;
+            /* background-image: url("zjm.webp"); */
+        }
+        #mycanvas {
+            position: absolute;
+            left: 200px;
+            top:50px;
+        }
+        #title {
+            position: absolute;
+            left: 400px;
+            top:20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 id = "title">五子棋</h2>
+    <canvas id="mycanvas" width="450px" height="450px" style="background-color:rgb(204, 131, 42);"></canvas>
+    <!-- <button id="regret" onclick="huiQi" width = "50px" height = "50px" style="background-color: #be1616;display: block;margin: 0 auto;">悔棋</button> -->
+    <div id="chat">
+        <h2 align="center">聊天框</h2>
+        <div id="messages">
+            <div id="message">系统：游戏愉快！</div>
+        </div>
+        <div class="send_msg">
+            <input type="text" id="msg">
+            <button id="send">发送</button>
+        </div>
+    </div>
+
+
+
+    <script type="text/javascript">
+        var socket = new WebSocket("ws://122.112.176.46:8080/ws");
+        var id = "-1"
+        window.onload = function () {
+            const messages = document.getElementById('messages')
+
+            document.onkeydown = function (ev) {
+                var event = ev || event
+                if (event.keyCode == 13) {
+                    chat()
+                }
+            }
+
+            scrollToBottom();
+
+            var btn = document.getElementById("send")
+            btn.onclick = function () {
+                var msg = document.getElementById("msg").value
+                document.getElementById("msg").value = ""
+                if (msg != "")
+                    socket.send('10 ' + msg)
+            }
+        }
+
+        //setInterval(getMessages, 100);
+        function appendMessage(msg) {
+            var newMessage = document.createElement("div")
+            newMessage.innerHTML = msg
+            messages.appendChild(newMessage);
+        }
+
+        function getMessages(msg) {
+            // Prior to getting your messages.
+            shouldScroll = messages.scrollTop + messages.clientHeight === messages.scrollHeight;
+            /*
+             * Get your messages, we'll just simulate it by appending a new one syncronously.
+             */
+            appendMessage(msg);
+            // After getting your messages.
+            if (!shouldScroll) {
+                scrollToBottom();
+            }
+        }
+
+        function scrollToBottom() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function chat() {
+            var msg = document.getElementById("msg").value
+            document.getElementById("msg").value = ""
+            if (msg != "")
+                socket.send('10 ' + msg)
+        }
+
+
+        var chess = document.getElementById("mycanvas");
+        var context = chess.getContext('2d');
+        var me = true;
+        //⽤于存放棋盘中落⼦的情况
+        var chessBox = []; //
+        for (var i = 0; i < 15; i++) {
+            chessBox[i] = [];
+            for (var j = 0; j < 15; j++) {
+                chessBox[i][j] = 0; //
+            }
+        }
+
+        function drawChessBoard() {
+            for (var i = 0; i < 15; i++) {
+                context.strokeStyle = "#D6D1D1";
+                context.moveTo(15 + i * 30, 15); //
+                context.lineTo(15 + i * 30, 435);
+                context.stroke();
+                context.moveTo(15, 15 + i * 30); //
+                context.lineTo(435, 15 + i * 30);
+                context.stroke();
+            }
+        }
+        drawChessBoard();
+
+        function Draw(i, j, k) {
+            context.beginPath();
+            context.arc(15 + i * 30, 15 + j * 30, 13, 0, 2 * Math.PI); //
+            var g = context.createRadialGradient(15 + i * 30, 15 + j * 30, 13, 15 + i * 30, 15 + j * 30, 0); //
+            if (k) { //k=true
+                g.addColorStop(0, '#0A0A0A'); //
+                g.addColorStop(1, '#636766');
+            } else {
+                g.addColorStop(0, '#D1D1D1'); //
+                g.addColorStop(1, '#F9F9F9');
+            }
+            context.fillStyle = g;
+            context.fill();
+            context.closePath();
+        }
+
+
+        function oneStep(i, j) {
+            var msg = '2 ' + String(i) + ' ' + String(j)
+            console.log('我下棋的位置', msg)
+            socket.send(msg)
+        }
+
+        var you_turn = -1
+
+        chess.onclick = function (e) {
+            var x = e.offsetX; //
+            var y = e.offsetY; //
+            var i = Math.floor(x / 30);
+            var j = Math.floor(y / 30);
+            if (chessBox[i][j] == 0 && you_turn == 1) {
+                oneStep(i, j);
+            }
+        }
+
+        function check(x, y, k) {
+            var l, r, t, b
+            // -----------左右----------
+            for (var i = x - 1; i >= 0; i--) {
+                if (chessBox[i][y] != k) {
+                    l = x - 1 - i;
+                    break;
+                }
+            }
+            for (var i = x + 1; i < 15; i++) {
+                if (chessBox[i][y] != k) {
+                    r = i - x - 1;
+                    break;
+                }
+            }
+            if (l + r + 1 >= 5) return true
+
+            // -----------上下--------
+            for (var j = y - 1; j >= 0; j--) {
+                if (chessBox[x][j] != k) {
+                    t = y - 1 - j;
+                    break;
+                }
+            }
+            for (var j = y + 1; j < 15; j++) {
+                if (chessBox[x][j] != k) {
+                    b = j - y - 1;
+                    break;
+                }
+            }
+            if (t + b + 1 >= 5) return true
+
+            //-----------y=-x---------
+            for (var l = -1;; l--) {
+                i = x + l;
+                j = y + l;
+                if (i < 0 || j < 0) {
+                    b = -l - 1;
+                    break;
+                }
+                if (chessBox[i][j] != k) {
+                    b = -l - 1;
+                    break;
+                }
+            }
+            for (var l = 1;; l++) {
+                i = x + l;
+                j = y + l;
+                if (i >= 15 || j >= 15) {
+                    t = l - 1;
+                    break;
+                }
+                if (chessBox[i][j] != k) {
+                    t = l - 1;
+                    break;
+                }
+            }
+            console.log(t, b)
+            if (t + b + 1 >= 5) return true
+
+            // -----------y=x---------------
+            for (var l = -1;; l--) {
+                i = x + l;
+                j = y - l;
+                if (i < 0 || j >= 15) {
+                    b = -l - 1;
+                    break;
+                }
+                if (chessBox[i][j] != k) {
+                    b = -l - 1;
+                    break;
+                }
+            }
+            for (var l = 1;; l++) {
+                i = x + l;
+                j = y - l;
+                if (i >= 15 || j < 0) {
+                    t = l - 1;
+                    break;
+                }
+                if (chessBox[i][j] != k) {
+                    t = l - 1;
+                    break;
+                }
+            }
+            console.log(t, b)
+            if (t + b + 1 >= 5) return true
+            return false
+        }
+
+
+        var recent_user = -1
+        var recent_x, recent_y
+
+        function huiQi() {
+            if (recent_user == 1) {
+                msg = '2 ' + String(recent_x) + ' ' + String(recent_y)
+                socket.send()
+            }
+        }
+
+
+        socket.addEventListener('message', function (event) {
+            msg = event.data
+            var tmp = JSON.parse(msg)
+            console.log(tmp)
+            var recv_id = tmp.sender_id
+            if (tmp.type == 1 && id === "-1") {
+                id = recv_id
+                console.log('我拿到id了: ', id)
+                return
+            }
+            // 确定谁先手
+            if (tmp.type == 3) {
+                if (recv_id == id)
+                    {
+                        you_turn = 1
+                        alert("游戏开始，你先手")
+                    } else{
+                        alert("游戏开始，你后手，请等待对手")
+                    }
+                return
+            }
+            // 聊天
+            if (tmp.type == 10) {
+                var who
+                if (recv_id == id) who = "我："
+                else who = "对手："
+                getMessages(who + tmp.body)
+                return
+            }
+            if (tmp.type != 2) return
+            var pos = tmp.body
+            x = parseInt(pos.split(' ')[0])
+            y = parseInt(pos.split(' ')[1])
+            console.log('我下的位置', x, y)
+            chessBox[x][y] = (recv_id == id ? 1 : 2)
+            Draw(x, y, recv_id == id)
+            if (check(x, y, chessBox[x][y])) {
+                if (you_turn == 1) alert('你赢了')
+                else alert('你输了')
+                return
+            }
+            if (recv_id != id) {
+                you_turn = 1
+                recent_user = 0
+            } else {
+                you_turn = 0
+                recent_user = 1
+                recent_x = x;
+                recent_y = y
+            }
+        });
+    </script>
+</body>
+
+</html>
