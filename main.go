@@ -2,11 +2,11 @@ package main
 
 import (
 	"backend/pkg/util"
+	"backend/pkg/websocket"
 	"fmt"
+	"github.com/thinkeridea/go-extend/exnet"
 	"net/http"
 	"strings"
-
-	"backend/pkg/websocket"
 )
 
 func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
@@ -33,12 +33,17 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 func setupRoutes() {
 	pool := websocket.NewPool()
 	go pool.Start()
+	websocket.InitRoom()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(pool, w, r)
 	})
 	http.HandleFunc("/http", func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
+		//ip := r.RemoteAddr
+		ip := exnet.ClientPublicIP(r)
+		if ip == "" {
+			ip = exnet.ClientIP(r)
+		}
 		if strings.Contains(ip, ":") {
 			ip = strings.Split(ip, ":")[0]
 		}

@@ -8,7 +8,7 @@ import (
 
 func AskIpAddr(ip string) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://122.112.176.46:5000?ip="+ip, nil)
+	req, err := http.NewRequest("GET", "http://43.142.132.19:5000?ip="+ip, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
